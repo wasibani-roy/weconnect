@@ -9,7 +9,7 @@ class ParcelOrder(flask.views.MethodView):
     @jwt_required
     def get(self):
         current_user = get_jwt_identity()
-        if current_user['username'] == "Admin":
+        if current_user['username'] == "admin":
             orders = Order.order_history()
             if not orders:
                 return {"msg": "You have not orderd for any food so you have no order history"}, 200
@@ -20,8 +20,7 @@ class ParcelOrder(flask.views.MethodView):
     @jwt_required
     def post(self):
         current_user = get_jwt_identity()
-        print(current_user)
-        """ Passing of incoming data inside post requests"""
+        """ Receiving request data from users"""
         parser = request.get_json()
         parcel_name = parser.get('parcel_name')
         destination = parser.get('destination')
@@ -51,18 +50,17 @@ class ParcelOrder(flask.views.MethodView):
         deliver_status = "pending"
         user_id = current_user["user_id"]
 
-
         """creating an insatnce of an order class"""
-        order = Order(order_id=None, user_id=user_id, parcel_name=parcel_name, receiver_name=receiver_name,\
-                      destination=destination,status=status,present_location=present_location, deliver_status=deliver_status)
+        order = Order(order_id=None, user_id=user_id, parcel_name=parcel_name, receiver_name=receiver_name, \
+                      destination=destination, status=status, present_location=present_location,
+                      deliver_status=deliver_status)
         select_order = order.fetch_parcel_name()
         if select_order:
-            return {'message': 'Order has already been placed'}, 403
+            return make_response(jsonify({'message': 'Order has already been placed'}), 403)
         create_order = order.insert_order_data()
         if create_order:
             return make_response(jsonify({'messege': "you have succesfully placed order"}), 201)
-        return {"message": "Order not placed succesfully"}, 400
-
+        return make_response(jsonify({"message": "Order not placed succesfully"}), 400)
 
 
 class UserSpecificOrder(flask.views.MethodView):
@@ -70,7 +68,8 @@ class UserSpecificOrder(flask.views.MethodView):
     def get(self):
         current_user = get_jwt_identity()
         user_id = current_user['user_id']
-        new_order = Order(user_id=user_id, parcel_name=None, order_id=None, receiver_name=None, status=None, deliver_status=None\
+        new_order = Order(user_id=user_id, parcel_name=None, order_id=None, receiver_name=None, status=None,
+                          deliver_status=None \
                           , destination=None, present_location=None)
         order = new_order.single_order()
         if not order:
@@ -78,40 +77,65 @@ class UserSpecificOrder(flask.views.MethodView):
         return make_response(jsonify({'orders': order}), 200)
 
     @jwt_required
-    def put(self, order_id):
+    def put(self, parcel_id):
         current_user = get_jwt_identity()
         user_id = current_user['user_id']
         parser = request.get_json()
         destination = parser.get('destination')
-        order = Order(user_id=user_id, parcel_name=None, order_id=order_id, receiver_name=None, status=None, deliver_status=None\
-                          , destination=destination, present_location=None)
+        order = Order(user_id=user_id, parcel_name=None, order_id=parcel_id, receiver_name=None, status=None,
+                      deliver_status=None \
+                      , destination=destination, present_location=None)
         if not destination:
             return make_response(jsonify({"message": "Please add a status"}), 400)
 
         if destination.isspace():
-            return {'message': 'Please avoid adding spaces'}, 400
+            return make_response(jsonify({'message': 'Please avoid adding spaces'}), 400)
 
-        update_status = order.update_destination()
-        if update_status:
-            return {'message': 'destination updated succesfully'}, 201
-        return {'message': 'Failed to update destination'}, 400
-
-
-
-# class AdminOrderView(Resource):
-#     @jwt_required
-#     @admin_only
-#     def get(self):
-#         orders = Order.fetch_all_orders()
-#         print(orders)
-#         if not orders:
-#             return {"msg": " There are no orders at the moment"}, 200
-#         return {"Available_orders": orders}, 200
+        update_destination = order.update_destination()
+        if update_destination:
+            return make_response(jsonify({'message': 'destination updated succesfully'}), 201)
+        return make_response(jsonify({'message': 'Failed to update destination'}), 400)
 
 
+class AdminOrderView(flask.views.MethodView):
+    @jwt_required
+    def put(self, parcel_id):
+        current_user = get_jwt_identity()
+        if current_user['username'] == "admin":
+            parser = request.get_json()
+            deliver_status = parser.get('delivery_status')
+            order = Order(user_id=None, parcel_name=None, order_id=parcel_id, receiver_name=None, status=None,
+                          deliver_status=deliver_status \
+                          , destination=None, present_location=None)
+            if not deliver_status:
+                return make_response(jsonify({"message": "Please add a status"}), 400)
 
+            if deliver_status.isspace():
+                return make_response(jsonify({'message': 'Please avoid adding spaces'}), 400)
 
+            update_status = order.update_delivery_status()
+            if update_status:
+                return make_response(jsonify({'message': 'destination updated succesfully'}), 201)
+            return make_response(jsonify({'message': 'Failed to update destination'}), 400)
+        return make_response(jsonify({"message": "You are not authorised to access this resource"}), 401)
 
+    @jwt_required
+    def put(self, parcel_id):
+        current_user = get_jwt_identity()
+        if current_user['username'] == "admin":
+            parser = request.get_json()
+            present_location = parser.get('present_location')
+            order = Order(user_id=None, parcel_name=None, order_id=parcel_id, receiver_name=None, status=None,
+                          deliver_status=None \
+                          , destination=None, present_location=present_location)
+            if not present_location:
+                return make_response(jsonify({"message": "Please add the present location of the parcel"}), 400)
 
+            if present_location.isspace():
+                return make_response(jsonify({'message': 'Please avoid adding spaces'}), 400)
 
-
+            update_present_location = order.update_present_location()
+            if update_present_location:
+                return make_response(jsonify({'message': 'present location updated succesfully'}), 201)
+            return make_response(jsonify({'message': 'Failed to update present location'}), 400)
+        return make_response(jsonify({"message": "You are not authorised to access this resource"}), 401)

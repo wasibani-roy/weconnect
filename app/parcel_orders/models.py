@@ -35,11 +35,10 @@ class Order:
             raise e
 
     def single_order(self):
-        query = """SELECT  * from orders where user_id = '{}'""".format(self.user_id)
-        db.cur.execute(query, (self.order_id))
-        oder = db.cur.fetchone()
-        print(oder)
-        return oder
+        query = """SELECT  * from orders where orders.user_id = %s"""
+        db.cur.execute(query, (self.user_id,))
+        user_order = db.cur.fetchall()
+        return user_order
 
     def fetch_all_orders(self):
         """ Fetches all order records from the database"""
@@ -55,10 +54,8 @@ class Order:
 
     @staticmethod
     def order_history():
-        query = """SELECT  od.order_id, od.quantity, od.status,od.location,od.CREATED_AT,
-                    f.price, f.food_name, usr.username from orders 
-                    as od JOIN food_items as f ON od.food_id=f.food_id JOIN
-                    users as usr ON od.user_id=usr.user_id;"""
+        query = "select users.username, orders.parcel_name, orders.destination, orders.status,\
+         orders.receiver_name, orders.present_location, orders.deliver_status from orders join users on orders.user_id=users.user_id"
         db.cur.execute(query)
         rows = db.cur.fetchall()
         return rows
@@ -75,15 +72,21 @@ class Order:
             return {'msg': 'user not found'}, 404
 
 
-    def update_status(self):
-        query = "UPDATE orders SET status = %s WHERE order_id = %s and user_id=%s"
-        db.cur.execute(query, (self.status, self.order_id, self.user_id))
+    def update_delivery_status(self):
+        query = "UPDATE orders SET deliver_status = %s WHERE parcel_order_id = %s"
+        db.cur.execute(query, (self.deliver_status, self.order_id,))
         updated_rows = db.cur.rowcount
         return updated_rows
 
     def update_destination(self):
-        query = "UPDATE orders SET destination = %s WHERE order_id = %s and user_id=%s"
+        query = "UPDATE orders SET destination = %s WHERE parcel_order_id = %s and user_id=%s"
         db.cur.execute(query, (self.destination, self.order_id, self.user_id))
+        updated_rows = db.cur.rowcount
+        return updated_rows
+
+    def update_present_location(self):
+        query = "UPDATE orders SET present_location = %s WHERE parcel_order_id = %s"
+        db.cur.execute(query, (self.present_location, self.order_id,))
         updated_rows = db.cur.rowcount
         return updated_rows
 
